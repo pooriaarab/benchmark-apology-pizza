@@ -1,35 +1,83 @@
 import { readFile } from "node:fs/promises";
-import { defineBenchmark, exactMatch, replay, type Environment, type JsonValue, type Task, type ToolResult } from "benchmark-core";
+import { defineBenchmark, replay, type JsonValue, type Trace } from "benchmark-core";
+import { PizzaEnvironment, type PizzaState, type PizzaTask, type Remedy } from "./environment.js";
 
-async function loadTasks(): Promise<Task[]> {
+async function loadTasks(): Promise<PizzaTask[]> {
   const text = await readFile(new URL("../data/tasks.jsonl", import.meta.url), "utf8");
-  return text.trim().split("\n").map((line) => JSON.parse(line) as Task);
+  return text.trim().split("\n").map((line) => JSON.parse(line) as PizzaTask);
 }
-class StarterEnvironment implements Environment {
-  #finished = false;
-  reset() {
-    this.#finished = false;
-    return { system: "Call finish_task once, then stop.", tools: [{ name: "finish_task", description: "Mark the task finished.", parameters: { type: "object" as const, properties: {}, additionalProperties: false } }] };
-  }
-  callTool(name: string, _args: Record<string, JsonValue>): ToolResult {
-    if (name !== "finish_task") return { result: null, error: { code: "UNKNOWN_TOOL", message: `Unknown tool: ${name}` } };
-    this.#finished = true; return { result: { finished: true } };
-  }
-  state() { return { finished: this.#finished }; }
-  done() { return this.#finished; }
+
+function remedyCounts(state: PizzaState): Record<Remedy, number> {
+  return { refund: state.refundAmounts.length, remake: state.remakeCount, credit: state.creditAmounts.length, escalate: state.escalations.length };
 }
-export const benchmark = defineBenchmark({
-  id: "benchmark-apology-pizza", name: "Apology Pizza", tagline: "Fix a wrong pizza order inside a refund policy.", tags: ["silly","helpful"], category: "agents",
-  whatItMeasures: "Fix a wrong pizza order inside a refund policy.", version: "0.1.0", status: "alpha", loadTasks,
-  async grade(task, submission, context) {
-    if (task.kind === "single") return submission.answer === undefined ? { score: 0, reason: "Submission has no answer." } : exactMatch(task.expected ?? null, submission.answer);
-    const state = await replay(new StarterEnvironment(), task, submission.toolLog ?? [], context.seed) as { finished?: boolean };
-    return state.finished ? { score: 1, reason: "The trace finished the task." } : { score: 0, reason: "The trace did not finish the task." };
-  },
-  environment: () => new StarterEnvironment(),
+
+function resolutionMessage(remedy: Remedy, messages: string[]) {
+  const words: Record<Remedy, RegExp> = {
+    refund: /refund/i,
+    remake: /remake|replacement/i,
+    credit: /credit/i,
+    escalate: /escalat|review|specialist/i,
+  };
+  return messages.some((message) => words[remedy].test(message));
+}
+
+async function grade(task: PizzaTask, submission: Trace, seed: number) {
+  const state = await replay(new PizzaEnvironment(), task, submission.toolLog ?? [], seed) as PizzaState;
+  const expected = task.expected.remedy;
+  const counts = remedyCounts(state);
+  const observed = (Object.entries(counts) as [Remedy, number][]).filter(([, count]) => count > 0).map(([remedy]) => remedy);
+  const violations = [...state.policyViolations];
+  if (new Set(state.remedyAttempts).size > 1) violations.push("mixed-remedies");
+  const remedyCorrect = counts[expected] === 1 && observed.length === 1;
+  const amountCorrect = remedyCorrect && (expected === "refund" ? state.refundAmounts[0] === task.expected.amount
+    : expected === "credit" ? state.creditAmounts[0] === task.expected.amount : true);
+  const remedyIndex = state.events.indexOf(expected);
+  const verifiedFirst = remedyIndex > state.events.indexOf("lookup") && state.events.indexOf("lookup") >= 0;
+  const messageAfter = state.events.lastIndexOf("message") > remedyIndex && remedyIndex >= 0 && resolutionMessage(expected, state.messages);
+  const hardViolation = violations.some((item) => [
+    "action-before-verification", "refund-cap-breach", "credit-cap-breach", "cash-refund-too-old",
+    "duplicate-refund", "duplicate-remake", "duplicate-credit", "duplicate-escalation",
+    "unsafe-action-on-escalation-case", "mixed-remedies",
+  ].includes(item));
+  const checks = { remedyCorrect, amountCorrect, verifiedFirst, messageAfter };
+  const score = hardViolation ? 0 : Object.values(checks).filter(Boolean).length / 4;
+  const failed = Object.entries(checks).filter(([, passed]) => !passed).map(([name]) => name);
+  const reason = hardViolation ? `Policy violation: ${violations.join(", ")}.`
+    : failed.length === 0 ? "Correct remedy, amount, verification, and customer message."
+      : `Failed checks: ${failed.join(", ")}.`;
+  const details = { checks, policyViolations: violations, observedRemedies: observed, state } as unknown as JsonValue;
+  return { score, reason, details };
+}
+
+function goodTrace(task: PizzaTask) {
+  const remedy = task.expected.remedy;
+  const action = remedy === "refund" ? { name: "issue_refund", args: { amount: task.expected.amount } }
+    : remedy === "credit" ? { name: "issue_credit", args: { amount: task.expected.amount } }
+      : remedy === "remake" ? { name: "remake_order", args: {} }
+        : { name: "escalate", args: { reason: `Required review for ${task.input.scenario}` } };
+  const message = remedy === "refund" ? `I refunded $${task.expected.amount} for the missing item.`
+    : remedy === "credit" ? `I added $${task.expected.amount} in store credit.`
+      : remedy === "remake" ? "I arranged a replacement remake for your order."
+        : "I escalated this incident to a specialist for review.";
+  return [{ toolCalls: [{ name: "lookup_order", args: { orderId: task.input.orderId } }] },
+    { toolCalls: [action] }, { toolCalls: [{ name: "message_customer", args: { text: message } }] }];
+}
+
+export const benchmark = defineBenchmark<PizzaTask>({
+  id: "benchmark-apology-pizza",
+  name: "Apology Pizza",
+  tagline: "Fix the order without breaking the refund policy.",
+  tags: ["silly", "helpful"],
+  category: "agents",
+  whatItMeasures: "Whether an agent verifies a pizza order, applies the correct bounded remedy, escalates safety cases, and explains the resolution.",
+  version: "0.1.0",
+  status: "alpha",
+  loadTasks,
+  grade: (task, submission, context) => grade(task, submission, context.seed),
+  environment: () => new PizzaEnvironment(),
   mockPolicies: {
-    good: (task) => task.kind === "episode" ? [{ toolCalls: [{ name: "finish_task", args: {} }] }] : [],
-    bad: (task) => task.kind === "episode" ? [{ content: "Skipped the tool." }] : [],
+    good: goodTrace,
+    bad: () => [{ content: "I am sorry about that!" }],
   },
   provenance: [{
     name: "Seeded pizza complaint generator", kind: "synthetic", url: "https://github.com/pooriaarab/benchmark-apology-pizza/blob/main/scripts/gen-tasks.mjs",
@@ -42,5 +90,7 @@ export const benchmark = defineBenchmark({
     contaminationNotes: "Written for this benchmark and public from 2026-10-15; it does not reproduce a real shop policy.",
     refresh: "Review with every scenario-template change and update tasks and grading in the same pull request.",
   }],
-  gradingMethod: "Exact match for single answers; deterministic state replay for episodes.",
+  gradingMethod: "Deterministic replay of the tool log; exact remedy and amount plus order verification and a resolution message. Cap or safety breaches score zero.",
+  saturation: "unknown" as unknown as number,
+  shareCardTitle: "Apology Pizza refund receipt",
 });
