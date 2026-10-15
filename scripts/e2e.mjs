@@ -6,14 +6,62 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { benchmark } from "../dist/index.js";
 const execFile = promisify(execFileCallback);
+const cli = (...args) => execFile(process.execPath, ["dist/cli.js", ...args], { maxBuffer: 2_000_000 });
 
 await execFile("npm", ["run", "build"]);
-const cli = await execFile(process.execPath, ["dist/cli.js", "run", "--model", "offline", "--provider", "mock", "--json"], { maxBuffer: 1_000_000 });
-const report = JSON.parse(cli.stdout);
+const runResult = await cli("run", "--model", "offline", "--provider", "mock", "--json");
+const report = JSON.parse(runResult.stdout);
 assert.equal(report.rows.length, 40);
 assert.ok(report.rows.some((row) => row.score === 1));
 assert.ok(report.rows.some((row) => row.score === 0));
+
+const tasks = await benchmark.listTasks();
+const policies = benchmark.definition.mockPolicies;
+assert.ok(policies);
+const scriptedTrace = (turns) => ({ toolLog: turns.flatMap((turn) => (turn.toolCalls ?? []).map((call) => ({ name: call.name, args: call.args, result: null }))) });
+const goodScores = await Promise.all(tasks.map((task) => benchmark.score(task, scriptedTrace(policies.good(task)))));
+assert.ok(goodScores.every(({ score }) => score === 1));
+const badFamilies = [
+  () => ({}),
+  () => ({ answer: "purple aardvark" }),
+  () => ({ answer: "yes" }),
+  () => ({ toolLog: [{ name: "issue_refund", args: { amount: 1 }, result: null }] }),
+];
+const badMeans = [];
+for (const makeTrace of badFamilies) {
+  const scores = await Promise.all(tasks.map((task) => benchmark.score(task, makeTrace())));
+  const mean = scores.reduce((sum, value) => sum + value.score, 0) / scores.length;
+  assert.ok(mean <= 0.1);
+  badMeans.push(mean);
+}
+const missing = tasks.find((task) => task.id === "missing-item-1");
+assert.ok(missing);
+const overCap = await benchmark.score(missing, { toolLog: [
+  { name: "lookup_order", args: { orderId: missing.input.orderId }, result: null },
+  { name: "issue_refund", args: { amount: 999 }, result: null },
+  { name: "message_customer", args: { text: "I refunded the item." }, result: null },
+] });
+assert.equal(overCap.score, 0);
+assert.ok(overCap.details.policyViolations.includes("refund-cap-breach"));
+
+await mkdir("artifacts", { recursive: true });
+const reportPath = "artifacts/mock-report.json";
+const cardPath = "artifacts/share-card.svg";
+await writeFile(reportPath, `${JSON.stringify(report)}\n`);
+assert.equal(JSON.parse((await cli("list", "--json")).stdout).tasks.length, 40);
+assert.equal(JSON.parse((await cli("show", "wrong-topping-1", "--json")).stdout).task.id, "wrong-topping-1");
+assert.equal(JSON.parse((await cli("score", reportPath, "--json")).stdout).rows.length, 40);
+await cli("card", reportPath, cardPath);
+const card = await readFile(cardPath, "utf8");
+assert.match(card, /Apology Pizza/);
+assert.match(card, /mock:1/);
+assert.match(card, /aibenchmarkindex\.com/);
+assert.match((await cli("provenance")).stdout, /Seeded pizza complaint generator/);
+const indexEntry = JSON.parse((await cli("index-entry", "--json")).stdout);
+assert.equal(indexEntry.task_count, 40);
+assert.equal(indexEntry.saturation, "unknown");
 
 const probe = createNetServer();
 await new Promise((resolve) => probe.listen(0, "127.0.0.1", resolve));
@@ -27,9 +75,9 @@ async function get(path) {
 }
 try {
   for (let attempt = 0; attempt < 100; attempt++) { try { await get("/health"); break; } catch { await new Promise((resolve) => setTimeout(resolve, 20)); } }
-  const health = await get("/health"); assert.equal(health.response.status, 200);
-  const listed = await get("/v1/tasks"); assert.equal(listed.value.tasks.length, 40);
-  const shown = await get("/v1/tasks/wrong-topping-1"); assert.equal(shown.value.task.id, "wrong-topping-1");
+  assert.equal((await get("/health")).response.status, 200);
+  assert.equal((await get("/v1/tasks")).value.tasks.length, 40);
+  assert.equal((await get("/v1/tasks/wrong-topping-1")).value.task.id, "wrong-topping-1");
   const score = await fetch(`${base}/v1/score`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: "wrong-topping-1", submission: report.rows[0].submission }) });
   routes["POST /v1/score"] = score.status; assert.equal(score.status, 200);
   assert.equal((await get("/v1/provenance")).response.status, 200);
@@ -40,7 +88,7 @@ const transport = new StdioClientTransport({ command: process.execPath, args: ["
 const client = new Client({ name: "benchmark-apology-pizza-e2e", version: "0.1.0" });
 await client.connect(transport); let toolNames;
 try {
-  const available = await client.listTools(); toolNames = available.tools.map((tool) => tool.name).sort();
+  toolNames = (await client.listTools()).tools.map((tool) => tool.name).sort();
   assert.deepEqual(toolNames, ["get_provenance", "get_task", "list_tasks", "run_benchmark", "score_answer"]);
   const calls = [
     ["list_tasks", {}], ["get_task", { taskId: "wrong-topping-1" }],
@@ -53,8 +101,7 @@ try {
   }
 } finally { await client.close(); }
 
-const artifact = { task_count: report.rows.length, scores: report.rows.map((row) => row.score), route_status_codes: routes, tool_names: toolNames };
-await mkdir("artifacts", { recursive: true });
+const artifact = { task_count: report.rows.length, scores: report.rows.map((row) => row.score), good_policy_mean: 1, bad_answer_means: badMeans, route_status_codes: routes, tool_names: toolNames };
 await writeFile("artifacts/e2e-report.json", `${JSON.stringify(artifact, null, 2)}\n`);
 assert.match(await readFile("data/PROVENANCE.md", "utf8"), /Seeded pizza complaint generator/);
-console.log(`e2e: ${artifact.task_count} tasks, ${Object.keys(routes).length} routes, ${toolNames.length} tools -> all surfaces passed, ok`);
+console.log(`e2e: ${artifact.task_count} tasks, 4 bad-answer families, 6 routes, ${toolNames.length} tools -> all surfaces passed, ok`);
