@@ -32,10 +32,15 @@ export const benchmark = defineBenchmark({
     bad: (task) => task.kind === "episode" ? [{ content: "Skipped the tool." }] : [],
   },
   provenance: [{
-    name: "Seeded starter task generator", kind: "synthetic", url: "https://github.com/pooriaarab/benchmark-apology-pizza/blob/main/scripts/gen-tasks.mjs",
-    licence: "MIT", howToGet: "Run `node scripts/gen-tasks.mjs` from the repository root.", retrievedAt: "2026-10-15T00:00:00.000Z",
-    contaminationNotes: "Public starter tasks generated with seed 20261015. Keep final evaluation tasks in a separately seeded hidden split.",
-    refresh: "Change the seed, run the generator, and review the JSONL diff.",
+    name: "Seeded pizza complaint generator", kind: "synthetic", url: "https://github.com/pooriaarab/benchmark-apology-pizza/blob/main/scripts/gen-tasks.mjs",
+    licence: "MIT", howToGet: "Run `node scripts/gen-tasks.mjs --seed 20261015 --split public` from the repository root.", retrievedAt: "2026-10-15T00:00:00.000Z",
+    contaminationNotes: "The public split uses seed 20261015. Generate private hidden splits with an undisclosed seed after the 2026-10-15 cutoff.",
+    refresh: "Review templates annually, select a new seed, regenerate, and review the JSONL diff.",
+  }, {
+    name: "Apology Pizza support policy", kind: "human-written", url: "https://github.com/pooriaarab/benchmark-apology-pizza/blob/main/data/POLICY.md",
+    licence: "MIT", howToGet: "Read `data/POLICY.md` in this repository.", retrievedAt: "2026-10-15T00:00:00.000Z",
+    contaminationNotes: "Written for this benchmark and public from 2026-10-15; it does not reproduce a real shop policy.",
+    refresh: "Review with every scenario-template change and update tasks and grading in the same pull request.",
   }],
   gradingMethod: "Exact match for single answers; deterministic state replay for episodes.",
 });
