@@ -1,10 +1,14 @@
 # benchmark-apology-pizza
 
-> Fix a wrong pizza order inside a refund policy.
+> Deterministic AI agent benchmark for pizza refunds, policy compliance, escalation, and customer communication.
 
 Package: https://www.npmjs.com/package/benchmark-apology-pizza
 Repository: https://github.com/pooriaarab/benchmark-apology-pizza
-Directory: https://aibenchmarkindex.com/benchmarks/benchmark-apology-pizza
+Docs: https://aibenchmarkindex.com/benchmarks/benchmark-apology-pizza
+
+## What it measures
+
+Forty seeded episodes cover wrong toppings, late or cold delivery, missing items, customer-supplied addresses, allergen incidents, repeat complaints, and fraud patterns. The grader replays tool calls and checks the remedy, amount, verification order, message, and policy violations.
 
 ## Exports
 
@@ -12,7 +16,11 @@ The root exports `benchmark`, `run`, and `score`. `benchmark-apology-pizza/api` 
 
 ## Commands
 
-The CLI supports list, show, run, score, card, provenance, index-entry, serve, and mcp. Use the mock provider for offline verification.
+The CLI supports `list`, `show`, `run`, `score`, `card`, `provenance`, `index-entry`, `serve`, and `mcp`. Use `npx benchmark-apology-pizza run --model offline --provider mock` for an offline run.
+
+## Data
+
+`data/tasks.jsonl` is generated with public seed 20261015. `data/POLICY.md` is human-written for this package. Both are MIT licensed. Use a private seed for held-out comparisons.
 
 ## Verification
 
