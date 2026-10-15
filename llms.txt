@@ -1,0 +1,19 @@
+# benchmark-apology-pizza
+
+> Fix a wrong pizza order inside a refund policy.
+
+Package: https://www.npmjs.com/package/benchmark-apology-pizza
+Repository: https://github.com/pooriaarab/benchmark-apology-pizza
+Directory: https://private-repo-337e.com/benchmarks/benchmark-apology-pizza
+
+## Exports
+
+The root exports `benchmark`, `run`, and `score`. `benchmark-apology-pizza/api` exports the fetch-style `handler`. `benchmark-apology-pizza/mcp` exports MCP builders.
+
+## Commands
+
+The CLI supports list, show, run, score, card, provenance, index-entry, serve, and mcp. Use the mock provider for offline verification.
+
+## Verification
+
+Run `npm run ci:local`. The report is `artifacts/e2e-report.json`.
