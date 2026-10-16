@@ -1,6 +1,6 @@
 {
   "name": "benchmark-apology-pizza",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Deterministic AI agent benchmark for pizza refunds, policy compliance, escalation, tool use, CLI, API, and MCP.",
   "keywords": [
     "ai-benchmark",
@@ -53,7 +53,8 @@
     "AGENTS.md",
     "llms.txt",
     "server.json",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=20"

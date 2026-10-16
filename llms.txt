@@ -8,20 +8,24 @@ Docs: https://private-repo-337e.com/benchmarks/benchmark-apology-pizza
 
 ## What it measures
 
-Forty seeded episodes cover wrong toppings, late or cold delivery, missing items, customer-supplied addresses, allergen incidents, repeat complaints, and fraud patterns. The grader replays tool calls and checks the remedy, amount, verification order, message, and policy violations.
+Forty seeded episodes cover wrong toppings, late or cold delivery, missing items (including orders past the 30-day refund window), customer-supplied addresses, allergen incidents, repeat complaints, and fraud patterns. The grader replays tool calls and checks the remedy, amount, verification order, a message sent after the remedy, and policy violations.
 
 ## Exports
 
-The root exports `benchmark`, `run`, and `score`. `benchmark-apology-pizza/api` exports the fetch-style `handler`. `benchmark-apology-pizza/mcp` exports MCP builders.
+The root exports `benchmark`, `run`, `score`, `loadTasksFrom`, `benchmarkForTasks`, `enrichReport`, and `PizzaEnvironment`. `benchmark-apology-pizza/api` exports the fetch-style `handler` and `createApiHandler`. `benchmark-apology-pizza/mcp` exports MCP builders.
 
 ## Commands
 
-The CLI supports `list`, `show`, `run`, `score`, `card`, `provenance`, `index-entry`, `serve`, and `mcp`. Use `npx benchmark-apology-pizza run --model offline --provider mock` for an offline run.
+The CLI supports `list`, `show`, `run`, `score`, `card`, `provenance`, `index-entry`, `serve`, and `mcp`. Use `npx benchmark-apology-pizza run --model offline --provider mock` for an offline run. Pass `--tasks <path>` to run a generated split file, or `tasksPath` in the SDK, API, and MCP tools.
+
+## Reports
+
+Run and score output attach grader details to each row and a `breakdown` with per-check counts and `policyViolations` totals. `POST /v1/score-report` re-grades a saved report the same way; submitted scores are ignored.
 
 ## Data
 
-`data/tasks.jsonl` is generated with public seed 20261015. `data/POLICY.md` is human-written for this package. Both are MIT licensed. Use a private seed for held-out comparisons.
+`data/tasks.jsonl` is generated with public seed 20261015. `data/POLICY.md` is human-written for this package. Both are MIT licensed. Hidden splits write to `hidden/tasks-<seed>.jsonl`, which is gitignored and excluded from the npm package. Use a private seed for held-out comparisons.
 
 ## Verification
 
-Run `npm run ci:local`. The report is `artifacts/e2e-report.json`.
+Run `npm run ci:local`. The report is `artifacts/e2e-report.json`. Scores from version 0.1.0 are not comparable with 0.2.0; see CHANGELOG.md.
