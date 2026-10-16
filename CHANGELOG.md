@@ -20,6 +20,13 @@ Scoring changed; 0.1.0 results are not comparable with 0.2.0.
   written policy of 20% of the order value up to $10.
 - Run and score reports carry per-row grader details and a `breakdown`
   with per-check counts and `policyViolations` totals.
+- `POST /v1/score-report`, the `score` command, and `enrichReport`
+  re-grade every report row from its tool log, recompute the mean and
+  confidence interval, and reject rows with unknown task ids or missing
+  submissions. Submitted scores are ignored.
+- The policy now requires the $5 courtesy credit for a customer-supplied
+  wrong address instead of calling it allowed, and cap sentences use
+  "must not" instead of "may not".
 - Every surface accepts a task file: `--tasks <path>` on the CLI,
   `tasksPath` in SDK run options and MCP tools,
   `createApiHandler({ tasksPath })`, and `POST /v1/score-report`.

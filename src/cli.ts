@@ -2,13 +2,13 @@
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import {
-  bootstrapCI, createCli, mockAdapter, openaiCompatAdapter, openrouterAdapter, renderMarkdown,
+  createCli, mockAdapter, openaiCompatAdapter, openrouterAdapter, renderMarkdown,
   run as runCore, serve as serveHttp, type Benchmark, type ModelAdapter, type RunReport,
 } from "benchmark-core";
 import { createApiHandler } from "./api.js";
 import { benchmark, benchmarkForTasks, enrichReport } from "./index.js";
 import { startMcp } from "./mcp.js";
-import { renderBreakdown, summarize, type EnrichedRunReport } from "./report.js";
+import { renderBreakdown, type EnrichedRunReport } from "./report.js";
 import type { PizzaTask } from "./environment.js";
 
 const bin = "benchmark-apology-pizza";
@@ -59,21 +59,7 @@ async function scoreCommand(args: string[], bench: Benchmark<PizzaTask>): Promis
   if (!file) throw new Error(`score needs a results JSON file.\n${usage}`);
   const original = JSON.parse(await readFile(file, "utf8")) as RunReport;
   if (!Array.isArray(original.rows)) throw new Error("File is not a run report.");
-  const rows = [] as EnrichedRunReport["rows"];
-  for (const row of original.rows) {
-    const task = await bench.getTask(row.taskId);
-    if (!task || row.submission === undefined) throw new Error(`Cannot score task ${row.taskId}.`);
-    const grade = await bench.score(task, row.submission, { seed: original.seed });
-    rows.push({ ...row, score: grade.score, reason: grade.reason, ...(grade.details !== undefined ? { details: grade.details } : {}) });
-  }
-  const scores = rows.map((row) => row.score);
-  const enriched: EnrichedRunReport = {
-    ...original, rows,
-    mean: scores.reduce((sum, value) => sum + value, 0) / scores.length,
-    confidenceInterval95: bootstrapCI(scores, original.seed),
-    breakdown: summarize(rows),
-  };
-  print(enriched, parsed.values.json === true);
+  print(await enrichReport(bench, original), parsed.values.json === true);
   return 0;
 }
 

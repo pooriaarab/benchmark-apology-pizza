@@ -17,6 +17,7 @@ Write changes against these failure modes:
 - **Early message:** a message sent before the remedy does not end the episode; the episode ends only after a message that follows the remedy.
 - **Argument confusion:** unknown tools, missing arguments, wrong order IDs, and invalid types are ignored or accidentally accepted.
 - **Replay mismatch:** grading uses a state snapshot supplied by the model instead of rebuilding state from the log.
+- **Report forgery:** submitted scores, reasons, means, and intervals are ignored. `/v1/score-report`, the `score` command, and `enrichReport` re-grade every row from its tool log. A row with an unknown task id or no submission and no run error is rejected; a row that only records a run error keeps score 0.
 
 ## Score
 

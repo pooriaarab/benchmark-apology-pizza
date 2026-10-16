@@ -163,7 +163,7 @@ npx benchmark-apology-pizza serve 3000
 npx benchmark-apology-pizza serve 3000 --tasks hidden/tasks-94721.jsonl
 ```
 
-Routes are `GET /health`, `GET /v1/tasks`, `GET /v1/tasks/:id`, `POST /v1/score`, `POST /v1/score-report`, `GET /v1/provenance`, and `GET /v1/index-entry`. `POST /v1/score-report` takes `{ "report": <run report> }` and returns the report with per-row details and the grading breakdown. `createApiHandler({ tasksPath })` serves a split file.
+Routes are `GET /health`, `GET /v1/tasks`, `GET /v1/tasks/:id`, `POST /v1/score`, `POST /v1/score-report`, `GET /v1/provenance`, and `GET /v1/index-entry`. `POST /v1/score-report` takes `{ "report": <run report> }`, re-grades every row from its submitted tool log, and returns the report with fresh scores, the recomputed mean and confidence interval, per-row details, and the grading breakdown. Submitted scores are ignored, and rows with unknown task ids or no submission are rejected. `createApiHandler({ tasksPath })` serves a split file.
 
 ## Data and reproducibility
 
