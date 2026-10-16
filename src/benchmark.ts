@@ -61,7 +61,7 @@ export const benchmark = defineBenchmark<PizzaTask>({
   tags: ["silly", "helpful"],
   category: "agents",
   whatItMeasures: "Whether an agent verifies a pizza order, applies the correct bounded remedy, escalates safety cases, and explains the resolution.",
-  version: "0.1.0",
+  version: "0.2.0",
   status: "alpha",
   loadTasks,
   grade: (task, submission, context) => grade(task, submission, context.seed),

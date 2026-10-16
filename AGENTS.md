@@ -9,7 +9,7 @@ This package measures whether an agent can resolve a pizza complaint without bre
 - Install with `npm ci`.
 - Run the full gate with `npm run ci:local`.
 - Generate public tasks with `node scripts/gen-tasks.mjs --seed 20261015 --split public`.
-- Generate a private split with `node scripts/gen-tasks.mjs --seed <seed> --split hidden`.
+- Generate a private split with `node scripts/gen-tasks.mjs --seed <seed> --split hidden`; it writes `hidden/tasks-<seed>.jsonl`, which is gitignored and excluded from the npm package. Run it with `--tasks <path>` on the CLI or `tasksPath` in the SDK, API, and MCP tools.
 - Regenerate provenance after building with `npm run provenance`.
 
 ## Contracts
