@@ -145,7 +145,7 @@ try {
 } finally { if (server.exitCode === null) { server.kill("SIGTERM"); await once(server, "exit"); } }
 
 const transport = new StdioClientTransport({ command: process.execPath, args: ["dist/cli.js", "mcp"], cwd: process.cwd(), stderr: "pipe" });
-const client = new Client({ name: "benchmark-apology-pizza-e2e", version: "0.1.0" });
+const client = new Client({ name: "benchmark-apology-pizza-e2e", version: "0.2.0" });
 await client.connect(transport); let toolNames;
 try {
   toolNames = (await client.listTools()).tools.map((tool) => tool.name).sort();
