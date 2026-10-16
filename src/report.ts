@@ -1,4 +1,4 @@
-import type { Benchmark, JsonValue, RunReport } from "benchmark-core";
+import { bootstrapCI, type Benchmark, type JsonValue, type RunReport } from "benchmark-core";
 import type { PizzaTask } from "./environment.js";
 
 export interface ReportBreakdown {
@@ -30,16 +30,28 @@ export function summarize(rows: ReadonlyArray<{ details?: JsonValue }>): ReportB
 }
 
 export async function enrichReport(benchmark: Benchmark<PizzaTask>, report: RunReport): Promise<EnrichedRunReport> {
+  const seed = Number.isFinite(report.seed) ? report.seed : 1;
   const rows = [] as EnrichedRunReport["rows"];
   for (const row of report.rows) {
-    let details: JsonValue | undefined;
-    if (row.submission !== undefined) {
-      const task = await benchmark.getTask(row.taskId);
-      if (task) details = (await benchmark.score(task, row.submission, { seed: report.seed })).details;
+    const task = await benchmark.getTask(row.taskId);
+    if (!task) throw new Error(`Unknown task id: ${row.taskId}.`);
+    const clean = { ...row } as EnrichedRunReport["rows"][number];
+    delete clean.details;
+    if (row.submission === undefined) {
+      if (row.error === undefined) throw new Error(`Row for task ${row.taskId} has no submission to score.`);
+      rows.push({ ...clean, score: 0 });
+      continue;
     }
-    rows.push(details === undefined ? row : { ...row, details });
+    const grade = await benchmark.score(task, row.submission, { seed });
+    rows.push({ ...clean, score: grade.score, reason: grade.reason, ...(grade.details !== undefined ? { details: grade.details } : {}) });
   }
-  return { ...report, rows, breakdown: summarize(rows) };
+  const scores = rows.map((row) => row.score);
+  return {
+    ...report, rows,
+    mean: scores.reduce((sum, value) => sum + value, 0) / scores.length,
+    confidenceInterval95: bootstrapCI(scores, seed),
+    breakdown: summarize(rows),
+  };
 }
 
 export function renderBreakdown(report: EnrichedRunReport): string {

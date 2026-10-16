@@ -135,9 +135,27 @@ try {
   const score = await fetch(`${base}/v1/score`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: "wrong-topping-1", submission: report.rows[0].submission }) });
   routes["POST /v1/score"] = score.status; assert.equal(score.status, 200);
   assert.ok((await score.json()).details.policyViolations !== undefined);
+  // A submitted score is never trusted: the route re-grades the trace.
+  const forgedScore = await fetch(`${base}/v1/score`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: "wrong-topping-1", submission: { toolLog: [] }, score: 1 }) });
+  assert.equal(forgedScore.status, 200);
+  assert.equal((await forgedScore.json()).score, 0);
   const rescored = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report }) });
   routes["POST /v1/score-report"] = rescored.status; assert.equal(rescored.status, 200);
   assert.ok((await rescored.json()).breakdown);
+  // Score-report re-grades every row, so forged scores, unknown task ids,
+  // and missing submissions cannot pass.
+  const forged = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { ...report, mean: 1, rows: report.rows.map((row) => ({ ...row, score: 1, reason: "forged" })) } }) });
+  routes["POST /v1/score-report forged"] = forged.status; assert.equal(forged.status, 200);
+  const forgedBody = await forged.json();
+  assert.deepEqual(forgedBody.rows.map((row) => row.score), report.rows.map((row) => row.score));
+  assert.equal(forgedBody.mean, report.mean);
+  const emptyLog = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { seed: report.seed, rows: report.rows.map((row) => ({ taskId: row.taskId, submission: { toolLog: [] }, score: 1 })) } }) });
+  assert.equal(emptyLog.status, 200);
+  assert.equal((await emptyLog.json()).mean, 0);
+  const unknownId = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { rows: [{ taskId: "hz-ghost-1", submission: { toolLog: [] }, score: 1 }] } }) });
+  assert.equal(unknownId.status, 400);
+  const noSubmission = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { rows: [{ taskId: "wrong-topping-1", score: 1 }] } }) });
+  assert.equal(noSubmission.status, 400);
   const badReport = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { rows: [{ taskId: 7, submission: { toolLog: "nope" } }] } }) });
   assert.equal(badReport.status, 400);
   assert.equal((await get("/v1/provenance")).response.status, 200);
@@ -159,6 +177,8 @@ try {
     const result = await client.callTool({ name, arguments: args });
     if (name === "run_benchmark") assert.equal(result.isError, true); else assert.notEqual(result.isError, true);
   }
+  const forgedMcp = await client.callTool({ name: "score_answer", arguments: { taskId: "wrong-topping-1", submission: { toolLog: [], score: 1 } } });
+  assert.equal(JSON.parse(forgedMcp.content[0].text).score, 0);
 } finally { await client.close(); }
 
 const artifact = { task_count: report.rows.length, scores: report.rows.map((row) => row.score), good_policy_mean: 1, bad_answer_means: Object.fromEntries(badMeans), hidden_task_count: hiddenTasks.length, route_status_codes: routes, tool_names: toolNames };

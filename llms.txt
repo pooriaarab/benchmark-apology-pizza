@@ -20,7 +20,7 @@ The CLI supports `list`, `show`, `run`, `score`, `card`, `provenance`, `index-en
 
 ## Reports
 
-Run and score output attach grader details to each row and a `breakdown` with per-check counts and `policyViolations` totals. `POST /v1/score-report` enriches a saved report the same way.
+Run and score output attach grader details to each row and a `breakdown` with per-check counts and `policyViolations` totals. `POST /v1/score-report` re-grades a saved report the same way; submitted scores are ignored.
 
 ## Data
 
