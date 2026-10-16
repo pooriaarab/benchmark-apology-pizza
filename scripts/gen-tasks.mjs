@@ -8,9 +8,9 @@ function option(name, fallback) {
 
 const split = option("--split", "public");
 if (!["public", "hidden"].includes(split)) throw new Error("--split must be public or hidden");
-// The hidden default differs from the published public seed on purpose. Private
-// evaluations should still pass their own --seed so the split stays undisclosed.
-const seed = Number(option("--seed", split === "hidden" ? "73019841" : "20261015"));
+// A hidden split needs a private seed; a default in public source would let anyone regenerate it.
+if (split === "hidden" && process.argv.indexOf("--seed") < 0) throw new Error("--split hidden requires an explicit private --seed");
+const seed = Number(option("--seed", "20261015"));
 if (!Number.isSafeInteger(seed)) throw new Error("--seed must be an integer");
 
 function mulberry32(value) {
