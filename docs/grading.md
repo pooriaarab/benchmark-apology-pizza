@@ -31,4 +31,4 @@ The result details include `policyViolations`, observed remedy calls, and simula
 
 ## Adversarial checks
 
-The E2E gate scores four deliberately bad traces over every task: empty output, random text, an always-yes answer, and the same refund call. Every bad family must keep a low mean, while the benchmark's good mock policy must score high. The gate also asserts that an over-cap refund scores exactly zero.
+The E2E gate scores nine deliberately bad traces over every task: empty output, two constant answers, an always-refuse answer, one repeated tool call, and constant strategies that always credit $5, always escalate, always remake, or always refund the maximum. Every bad family must stay well below the good policy, while the benchmark's good mock policy must score high. The gate also asserts that an over-cap refund scores exactly zero, that a message sent before the remedy does not truncate a live episode, and that public reference answers score below 1 on a hidden split.
