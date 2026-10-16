@@ -138,6 +138,8 @@ try {
   const rescored = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report }) });
   routes["POST /v1/score-report"] = rescored.status; assert.equal(rescored.status, 200);
   assert.ok((await rescored.json()).breakdown);
+  const badReport = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { rows: [{ taskId: 7, submission: { toolLog: "nope" } }] } }) });
+  assert.equal(badReport.status, 400);
   assert.equal((await get("/v1/provenance")).response.status, 200);
   assert.equal((await get("/v1/index-entry")).value.task_count, 40);
 } finally { if (server.exitCode === null) { server.kill("SIGTERM"); await once(server, "exit"); } }
