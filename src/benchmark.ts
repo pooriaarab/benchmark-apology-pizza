@@ -11,16 +11,6 @@ function remedyCounts(state: PizzaState): Record<Remedy, number> {
   return { refund: state.refundAmounts.length, remake: state.remakeCount, credit: state.creditAmounts.length, escalate: state.escalations.length };
 }
 
-function resolutionMessage(remedy: Remedy, messages: string[]) {
-  const words: Record<Remedy, RegExp> = {
-    refund: /refund/i,
-    remake: /remake|replacement/i,
-    credit: /credit/i,
-    escalate: /escalat|review|specialist/i,
-  };
-  return messages.some((message) => words[remedy].test(message));
-}
-
 async function grade(task: PizzaTask, submission: Trace, seed: number) {
   const state = await replay(new PizzaEnvironment(), task, submission.toolLog ?? [], seed) as PizzaState;
   const expected = task.expected.remedy;
@@ -31,13 +21,14 @@ async function grade(task: PizzaTask, submission: Trace, seed: number) {
   const remedyCorrect = counts[expected] === 1 && observed.length === 1;
   const amountCorrect = remedyCorrect && (expected === "refund" ? state.refundAmounts[0] === task.expected.amount
     : expected === "credit" ? state.creditAmounts[0] === task.expected.amount : true);
+  if (remedyCorrect && !amountCorrect) violations.push("wrong-remedy-amount");
   const remedyIndex = state.events.indexOf(expected);
   const verifiedFirst = remedyIndex > state.events.indexOf("lookup") && state.events.indexOf("lookup") >= 0;
-  const messageAfter = state.events.lastIndexOf("message") > remedyIndex && remedyIndex >= 0 && resolutionMessage(expected, state.messages);
+  const messageAfter = remedyIndex >= 0 && state.events.lastIndexOf("message") > remedyIndex;
   const hardViolation = violations.some((item) => [
     "action-before-verification", "refund-cap-breach", "credit-cap-breach", "cash-refund-too-old",
     "duplicate-refund", "duplicate-remake", "duplicate-credit", "duplicate-escalation",
-    "unsafe-action-on-escalation-case", "mixed-remedies",
+    "unsafe-action-on-escalation-case", "mixed-remedies", "wrong-remedy-amount",
   ].includes(item));
   const checks = { remedyCorrect, amountCorrect, verifiedFirst, messageAfter };
   const score = hardViolation ? 0 : Object.values(checks).filter(Boolean).length / 4;

@@ -93,7 +93,7 @@ Related work includes [τ-bench](https://github.com/sierra-research/tau-bench), 
 | Wrong topping | 5 | One remake |
 | Late delivery | 5 | Bounded store credit |
 | Cold pizza | 5 | One remake |
-| Missing item | 5 | Bounded item refund |
+| Missing item | 5 | Item refund, or store credit past 30 days |
 | Customer-supplied wrong address | 5 | $5 courtesy credit |
 | Allergen mix-up | 5 | Escalation |
 | Angry repeat customer | 5 | Bounded store credit |
