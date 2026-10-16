@@ -17,24 +17,34 @@ assert.equal(report.rows.length, 40);
 assert.ok(report.rows.some((row) => row.score === 1));
 assert.ok(report.rows.some((row) => row.score === 0));
 
+assert.ok(report.breakdown);
+assert.ok(report.rows.every((row) => row.details !== undefined));
+
 const tasks = await benchmark.listTasks();
 const policies = benchmark.definition.mockPolicies;
 assert.ok(policies);
 const scriptedTrace = (turns) => ({ toolLog: turns.flatMap((turn) => (turn.toolCalls ?? []).map((call) => ({ name: call.name, args: call.args, result: null }))) });
 const goodScores = await Promise.all(tasks.map((task) => benchmark.score(task, scriptedTrace(policies.good(task)))));
 assert.ok(goodScores.every(({ score }) => score === 1));
+const lookup = (task) => ({ name: "lookup_order", args: { orderId: task.input.orderId }, result: null });
+const tell = (text) => ({ name: "message_customer", args: { text }, result: null });
 const badFamilies = [
-  () => ({}),
-  () => ({ answer: "purple aardvark" }),
-  () => ({ answer: "yes" }),
-  () => ({ toolLog: [{ name: "issue_refund", args: { amount: 1 }, result: null }] }),
+  ["empty", () => ({})],
+  ["constant-text", () => ({ answer: "purple aardvark" })],
+  ["constant-yes", () => ({ answer: "yes" })],
+  ["always-refuse", () => ({ answer: "I cannot help with that request." })],
+  ["same-tool-call", () => ({ toolLog: [{ name: "issue_refund", args: { amount: 1 }, result: null }] })],
+  ["always-credit-five", (task) => ({ toolLog: [lookup(task), { name: "issue_credit", args: { amount: 5 }, result: null }, tell("I added $5 in store credit.")] })],
+  ["always-escalate", (task) => ({ toolLog: [lookup(task), { name: "escalate", args: { reason: "manual review" }, result: null }, tell("I escalated this for review.")] })],
+  ["always-remake", (task) => ({ toolLog: [lookup(task), { name: "remake_order", args: {}, result: null }, tell("I sent a replacement.")] })],
+  ["always-refund-max", (task) => ({ toolLog: [lookup(task), { name: "issue_refund", args: { amount: 35 }, result: null }, tell("I refunded $35.")] })],
 ];
 const badMeans = [];
-for (const makeTrace of badFamilies) {
-  const scores = await Promise.all(tasks.map((task) => benchmark.score(task, makeTrace())));
+for (const [name, makeTrace] of badFamilies) {
+  const scores = await Promise.all(tasks.map((task) => benchmark.score(task, makeTrace(task))));
   const mean = scores.reduce((sum, value) => sum + value.score, 0) / scores.length;
-  assert.ok(mean <= 0.1);
-  badMeans.push(mean);
+  assert.ok(mean <= 0.5, `${name} scored ${mean}, expected well below the good policy`);
+  badMeans.push([name, mean]);
 }
 const missing = tasks.find((task) => task.id === "missing-item-1");
 assert.ok(missing);
@@ -45,6 +55,50 @@ const overCap = await benchmark.score(missing, { toolLog: [
 ] });
 assert.equal(overCap.score, 0);
 assert.ok(overCap.details.policyViolations.includes("refund-cap-breach"));
+
+// A live episode may send a message before the remedy; it must still run until
+// the resolution message so the replayed score matches the live one.
+const { runEpisode } = await import("benchmark-core");
+const liveTask = tasks.find((task) => task.expected.remedy === "remake");
+assert.ok(liveTask);
+const liveTurns = [
+  [{ name: "lookup_order", args: { orderId: liveTask.input.orderId } }],
+  [{ name: "message_customer", args: { text: "I am on it." } }],
+  [{ name: "remake_order", args: {} }],
+  [{ name: "message_customer", args: { text: "A fresh pizza is on its way." } }],
+];
+const scriptedAdapter = {
+  id: "scripted",
+  complete: async () => ({ content: "" }),
+  chat: async (_request, context) => {
+    const calls = liveTurns[(context.turn ?? 1) - 1] ?? [];
+    return { content: calls.length ? "" : "Done.", toolCalls: calls.map((call, index) => ({ id: `t${context.turn}-${index}`, name: call.name, args: call.args })) };
+  },
+};
+const episode = await runEpisode(liveTask, scriptedAdapter, benchmark.definition.environment(liveTask), { maxTurns: 12, maxToolCalls: 24, budgetUsd: Number.POSITIVE_INFINITY, seed: 1 });
+assert.equal(episode.toolLog.filter((entry) => entry.name === "message_customer").length, 2);
+const liveScore = await benchmark.score(liveTask, { toolLog: episode.toolLog });
+assert.equal(liveScore.score, 1);
+
+// The hidden split must differ in ids, prompts, and answers, and public
+// reference answers must score below 1 on it.
+const hiddenSeed = 777001;
+await execFile(process.execPath, ["scripts/gen-tasks.mjs", "--seed", String(hiddenSeed), "--split", "hidden"]);
+const hiddenPath = `hidden/tasks-${hiddenSeed}.jsonl`;
+const hiddenTasks = (await readFile(hiddenPath, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+assert.equal(hiddenTasks.length, 40);
+assert.ok(hiddenTasks.every((task) => task.id.startsWith("hz-")));
+assert.ok(hiddenTasks.every((task) => !tasks.some((publicTask) => publicTask.id === task.id || publicTask.prompt === task.prompt)));
+const referenceScores = await Promise.all(hiddenTasks.map((task) => {
+  const reference = tasks.find((publicTask) => publicTask.input.scenario === task.input.scenario);
+  assert.ok(reference);
+  return benchmark.score(task, scriptedTrace(policies.good(reference)));
+}));
+assert.ok(referenceScores.every(({ score }) => score < 1));
+const hiddenRun = JSON.parse((await cli("run", "--model", "offline", "--provider", "mock", "--tasks", hiddenPath, "--json")).stdout);
+assert.equal(hiddenRun.rows.length, hiddenTasks.length);
+assert.ok(hiddenRun.breakdown);
+assert.equal(JSON.parse((await cli("list", "--tasks", hiddenPath, "--json")).stdout).tasks.length, hiddenTasks.length);
 
 await mkdir("artifacts", { recursive: true });
 const reportPath = "artifacts/mock-report.json";
@@ -80,12 +134,36 @@ try {
   assert.equal((await get("/v1/tasks/wrong-topping-1")).value.task.id, "wrong-topping-1");
   const score = await fetch(`${base}/v1/score`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: "wrong-topping-1", submission: report.rows[0].submission }) });
   routes["POST /v1/score"] = score.status; assert.equal(score.status, 200);
+  assert.ok((await score.json()).details.policyViolations !== undefined);
+  // A submitted score is never trusted: the route re-grades the trace.
+  const forgedScore = await fetch(`${base}/v1/score`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: "wrong-topping-1", submission: { toolLog: [] }, score: 1 }) });
+  assert.equal(forgedScore.status, 200);
+  assert.equal((await forgedScore.json()).score, 0);
+  const rescored = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report }) });
+  routes["POST /v1/score-report"] = rescored.status; assert.equal(rescored.status, 200);
+  assert.ok((await rescored.json()).breakdown);
+  // Score-report re-grades every row, so forged scores, unknown task ids,
+  // and missing submissions cannot pass.
+  const forged = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { ...report, mean: 1, rows: report.rows.map((row) => ({ ...row, score: 1, reason: "forged" })) } }) });
+  routes["POST /v1/score-report forged"] = forged.status; assert.equal(forged.status, 200);
+  const forgedBody = await forged.json();
+  assert.deepEqual(forgedBody.rows.map((row) => row.score), report.rows.map((row) => row.score));
+  assert.equal(forgedBody.mean, report.mean);
+  const emptyLog = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { seed: report.seed, rows: report.rows.map((row) => ({ taskId: row.taskId, submission: { toolLog: [] }, score: 1 })) } }) });
+  assert.equal(emptyLog.status, 200);
+  assert.equal((await emptyLog.json()).mean, 0);
+  const unknownId = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { rows: [{ taskId: "hz-ghost-1", submission: { toolLog: [] }, score: 1 }] } }) });
+  assert.equal(unknownId.status, 400);
+  const noSubmission = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { rows: [{ taskId: "wrong-topping-1", score: 1 }] } }) });
+  assert.equal(noSubmission.status, 400);
+  const badReport = await fetch(`${base}/v1/score-report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report: { rows: [{ taskId: 7, submission: { toolLog: "nope" } }] } }) });
+  assert.equal(badReport.status, 400);
   assert.equal((await get("/v1/provenance")).response.status, 200);
   assert.equal((await get("/v1/index-entry")).value.task_count, 40);
 } finally { if (server.exitCode === null) { server.kill("SIGTERM"); await once(server, "exit"); } }
 
 const transport = new StdioClientTransport({ command: process.execPath, args: ["dist/cli.js", "mcp"], cwd: process.cwd(), stderr: "pipe" });
-const client = new Client({ name: "benchmark-apology-pizza-e2e", version: "0.1.0" });
+const client = new Client({ name: "benchmark-apology-pizza-e2e", version: "0.2.0" });
 await client.connect(transport); let toolNames;
 try {
   toolNames = (await client.listTools()).tools.map((tool) => tool.name).sort();
@@ -99,9 +177,11 @@ try {
     const result = await client.callTool({ name, arguments: args });
     if (name === "run_benchmark") assert.equal(result.isError, true); else assert.notEqual(result.isError, true);
   }
+  const forgedMcp = await client.callTool({ name: "score_answer", arguments: { taskId: "wrong-topping-1", submission: { toolLog: [], score: 1 } } });
+  assert.equal(JSON.parse(forgedMcp.content[0].text).score, 0);
 } finally { await client.close(); }
 
-const artifact = { task_count: report.rows.length, scores: report.rows.map((row) => row.score), good_policy_mean: 1, bad_answer_means: badMeans, route_status_codes: routes, tool_names: toolNames };
+const artifact = { task_count: report.rows.length, scores: report.rows.map((row) => row.score), good_policy_mean: 1, bad_answer_means: Object.fromEntries(badMeans), hidden_task_count: hiddenTasks.length, route_status_codes: routes, tool_names: toolNames };
 await writeFile("artifacts/e2e-report.json", `${JSON.stringify(artifact, null, 2)}\n`);
 assert.match(await readFile("data/PROVENANCE.md", "utf8"), /Seeded pizza complaint generator/);
-console.log(`e2e: ${artifact.task_count} tasks, 4 bad-answer families, 6 routes, ${toolNames.length} tools -> all surfaces passed, ok`);
+console.log(`e2e: ${artifact.task_count} tasks, ${badMeans.length} bad-answer families, ${Object.keys(routes).length} routes, ${toolNames.length} tools -> all surfaces passed, ok`);

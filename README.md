@@ -10,7 +10,7 @@ benchmark-apology-pizza is an open-source AI agent benchmark for pizza support. 
 npx benchmark-apology-pizza run --model offline --provider mock
 ```
 
-A real run of version 0.1.0 prints:
+A real run of version 0.2.0 prints:
 
 ```text
 # Apology Pizza
@@ -19,6 +19,14 @@ A real run of version 0.1.0 prints:
 - Score: **50.0%**
 - 95% CI: 35.0%–65.0%
 - Tasks: 40
+
+## Grading breakdown
+
+- remedyCorrect: 20/40
+- amountCorrect: 20/40
+- verifiedFirst: 20/40
+- messageAfter: 20/40
+- policyViolations: none
 ```
 
 The 40 public complaints come from a committed seeded generator. The shop policy was written for this benchmark and does not copy a real restaurant policy.
@@ -63,7 +71,7 @@ The grader awards four equal checks:
 3. Verify the exact order before acting.
 4. Send a message after the remedy that states the outcome.
 
-A cap breach, unsafe action, duplicate side effect, mixed remedy, or action before verification scores zero. Each task result lists `policyViolations` separately.
+A cap breach, unsafe action, duplicate side effect, mixed remedy, wrong refund or credit amount, or action before verification scores zero. Each task result lists `policyViolations` separately, and the report prints a per-check breakdown.
 
 ## Why it exists
 
@@ -93,7 +101,7 @@ Related work includes [τ-bench](https://github.com/sierra-research/tau-bench), 
 | Wrong topping | 5 | One remake |
 | Late delivery | 5 | Bounded store credit |
 | Cold pizza | 5 | One remake |
-| Missing item | 5 | Bounded item refund |
+| Missing item | 5 | Item refund, or store credit past 30 days |
 | Customer-supplied wrong address | 5 | $5 courtesy credit |
 | Allergen mix-up | 5 | Escalation |
 | Angry repeat customer | 5 | Bounded store credit |
@@ -121,14 +129,14 @@ import { benchmark, run, score } from "benchmark-apology-pizza";
 
 const report = await run(openrouterAdapter({ model: "openai/gpt-4.1" }));
 const task = await benchmark.getTask("missing-item-1");
-console.log(report.mean, task?.prompt);
+console.log(report.mean, report.breakdown, task?.prompt);
 ```
 
-`score(taskId, trace)` grades a saved trace without a provider call.
+`score(taskId, trace)` grades a saved trace without a provider call. `run` returns an enriched report whose rows carry grader details and whose `breakdown` counts each check and policy violation. Pass `{ tasksPath }` to run a generated split file, or build a scoped benchmark with `benchmarkForTasks(path)`.
 
 ### Command-line interface
 
-Commands are `list`, `show <task>`, `run`, `score`, `card`, `provenance`, `index-entry`, `serve`, and `mcp`. Pass `--json` for machine-readable output.
+Commands are `list`, `show <task>`, `run`, `score`, `card`, `provenance`, `index-entry`, `serve`, and `mcp`. Pass `--json` for machine-readable output and `--tasks <path>` to work on a generated split file.
 
 ```bash
 npx benchmark-apology-pizza show allergen-1
@@ -144,7 +152,7 @@ Start the MCP stdio server:
 npx benchmark-apology-pizza mcp
 ```
 
-It exposes `list_tasks`, `get_task`, `score_answer`, `run_benchmark`, and `get_provenance`.
+It exposes `list_tasks`, `get_task`, `score_answer`, `run_benchmark`, and `get_provenance`. Each tool that reads tasks accepts a `tasksPath` argument for a generated split file.
 
 ### HTTP API
 
@@ -152,9 +160,10 @@ Import `handler` from `benchmark-apology-pizza/api`, or start the Node server:
 
 ```bash
 npx benchmark-apology-pizza serve 3000
+npx benchmark-apology-pizza serve 3000 --tasks hidden/tasks-94721.jsonl
 ```
 
-Routes are `GET /health`, `GET /v1/tasks`, `GET /v1/tasks/:id`, `POST /v1/score`, `GET /v1/provenance`, and `GET /v1/index-entry`.
+Routes are `GET /health`, `GET /v1/tasks`, `GET /v1/tasks/:id`, `POST /v1/score`, `POST /v1/score-report`, `GET /v1/provenance`, and `GET /v1/index-entry`. `POST /v1/score-report` takes `{ "report": <run report> }`, re-grades every row from its submitted tool log, and returns the report with fresh scores, the recomputed mean and confidence interval, per-row details, and the grading breakdown. Submitted scores are ignored, and rows with unknown task ids or no submission are rejected. `createApiHandler({ tasksPath })` serves a split file.
 
 ## Data and reproducibility
 
@@ -170,7 +179,13 @@ Generate a private evaluation split with an undisclosed seed:
 node scripts/gen-tasks.mjs --seed 94721 --split hidden
 ```
 
-The hidden output is gitignored. [PROVENANCE.md](data/PROVENANCE.md) records the sources, MIT licence, cutoff, retrieval steps, and refresh plan. [POLICY.md](data/POLICY.md) contains the complete policy.
+The hidden split uses its own id prefix, templates, names, seeded scenario mix, and ordering. It writes to `hidden/tasks-<seed>.jsonl`, which is gitignored and excluded from the npm package. Run it with `--tasks`:
+
+```bash
+npx benchmark-apology-pizza run --model offline --provider mock --tasks hidden/tasks-94721.jsonl
+```
+
+[PROVENANCE.md](data/PROVENANCE.md) records the sources, MIT licence, cutoff, retrieval steps, and refresh plan. [POLICY.md](data/POLICY.md) contains the complete policy.
 
 ## Limits and known weaknesses
 
@@ -191,11 +206,11 @@ npm ci
 npm run ci:local
 ```
 
-The gate rebuilds the package, runs every task, probes every HTTP route, calls every MCP tool, and checks four bad-answer families. It writes `artifacts/e2e-report.json`.
+The gate rebuilds the package, runs every task, probes every HTTP route, calls every MCP tool, checks nine bad-answer families, and verifies a hidden split. It writes `artifacts/e2e-report.json`.
 
 ## Status
 
-Version 0.1.0 is alpha. Task schemas and policy details can change before 1.0. Report defects through the [GitHub issue tracker](https://github.com/pooriaarab/benchmark-apology-pizza/issues). Public case studies are not yet published.
+Version 0.2.0 is alpha. Scores are not comparable with 0.1.0; see [CHANGELOG.md](CHANGELOG.md). Task schemas and policy details can change before 1.0. Report defects through the [GitHub issue tracker](https://github.com/pooriaarab/benchmark-apology-pizza/issues). Public case studies are not yet published.
 
 ## FAQ
 

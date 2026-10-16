@@ -125,7 +125,8 @@ export class PizzaEnvironment implements Environment<PizzaTask> {
 
   state() { return structuredClone(this.#state); }
   done() {
-    const remedies = this.#state.refundAmounts.length + this.#state.remakeCount + this.#state.creditAmounts.length + this.#state.escalations.length;
-    return remedies > 0 && this.#state.messages.length > 0;
+    const events = this.#state.events;
+    const remedyIndex = events.findIndex((event) => event === "refund" || event === "remake" || event === "credit" || event === "escalate");
+    return remedyIndex >= 0 && events.lastIndexOf("message") > remedyIndex;
   }
 }
