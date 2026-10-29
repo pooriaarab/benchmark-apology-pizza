@@ -1,0 +1,14 @@
+{
+  "title": "Apology Pizza: Measuring Bounded Remedies in Customer Support",
+  "orcid": "https://orcid.org/0009-0005-9964-6841",
+  "keywords": [
+    "customer support",
+    "policy compliance",
+    "tool use",
+    "deterministic evaluation",
+    "simulated control ablation"
+  ],
+  "code_url": "https://github.com/pooriaarab/benchmark-apology-pizza",
+  "artifact_name": "apology-pizza-paper.pdf",
+  "source_commit": "827bcf6330e082f6e400db21912fa02d0fd12baa"
+}
