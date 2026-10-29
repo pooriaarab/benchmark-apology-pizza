@@ -25,6 +25,7 @@ preferred-citation:
   authors:
     - family-names: Arab
       given-names: Pooria
-      orcid: https://orcid.org/0009-0005-9964-6841
-  url: https://github.com/pooriaarab/benchmark-apology-pizza
-  notes: "Research preprint; no new archival identifier assigned."
+      orcid: "https://orcid.org/0009-0005-9964-6841"
+  doi: 10.5281/zenodo.23752384
+  url: "https://doi.org/10.5281/zenodo.23752384"
+  license: CC-BY-4.0
