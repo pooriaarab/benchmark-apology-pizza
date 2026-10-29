@@ -1,0 +1,16 @@
+\newcommand{\paperTitle}{Apology Pizza: Measuring Bounded Remedies in Customer Support}
+\newcommand{\paperAbstract}{Customer support agents can offer polite text while taking the wrong financial action. Apology Pizza measures bounded remedy execution on 40 synthetic complaints across 8 scenario classes. We evaluate 12 scripted controls through the live tool environment and replay grader. A scenario-aware policy completes 40/40 tasks, with a 95\% Wilson interval [0.912, 1.000]. Replacing its final message with unrelated text also completes 40/40, with the same Wilson interval, exposing a message-content gap. A simulated control ablation varies independent omissions of verification and messaging. At omission probability 0.5, simulated completion changes from 0.234 [0.197, 0.266] without forced steps to 1.000 [1.000, 1.000] with both steps forced; brackets show 95\% seed-bootstrap intervals. All 13760 local episodes include repeated runs with identical semantic traces. These results test the evaluation design, not learned models, customer satisfaction, or deployment safety.}
+\newcommand{\authorOrcid}{https://orcid.org/0009-0005-9964-6841}
+\newcommand{\taskCount}{40}
+\newcommand{\scenarioCount}{8}
+\newcommand{\episodeCount}{13760}
+\newcommand{\baselineCount}{12}
+\newcommand{\seedCount}{8}
+\newcommand{\simCellCount}{160}
+\newcommand{\ciLevel}{95}
+\newcommand{\bootstrapDraws}{2000}
+\newcommand{\policyRate}{1.000 [0.912, 1.000]}
+\newcommand{\genericRate}{1.000 [0.912, 1.000]}
+\newcommand{\midRate}{0.234 [0.197, 0.266]}
+\newcommand{\bothRate}{1.000 [1.000, 1.000]}
+\newcommand{\midDelta}{0.766 [0.734, 0.803]}
