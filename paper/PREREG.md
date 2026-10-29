@@ -44,3 +44,9 @@ message content confused with message presence; reused randomness across distinc
 repeat timings confused with semantic changes; task repetitions treated as independent items;
 unlabelled simulations; figures detached from source data; template changes.
 Verification must re-grade saved traces and recompute summaries through public code.
+
+## Execution note, 2026-10-29
+The first attempt aborts before saving data: incomplete scripts lack a terminal turn.
+Append a text-only terminal turn after scripted actions. This preserves omission conditions.
+The empty-policy smoke check confirms the public runner accepts an empty response.
+No policy or hypothesis changes; rerun the full grid after this adapter correction.
