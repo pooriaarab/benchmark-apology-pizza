@@ -7,7 +7,7 @@
   "rawRegrade": true,
   "summaryAgreement": true,
   "repeatHashes": true,
-  "pdf_sha256": "1577c9c76e5542b371cdd86f3444a1e440f75b54f6654075b5f36130654bdf1a",
+  "pdf_sha256": "ba3cbc33da8659d3bd6fa5685f01562ba2356e2fcbfb17de503f5294839673c2",
   "template_hashes": {
     "build.py": "c4fbe230d6d0c1e008f93471db2273dfce1fa571b33915c23c5c1df3b7a52342",
     "layout.tex": "8f19d1c9a8c2d83b1736d0e6e0bb5b0957fd00117c356945ea78ddbafac13b53",
