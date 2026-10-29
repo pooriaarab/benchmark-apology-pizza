@@ -1,0 +1,150 @@
+\documentclass{article}
+\input{template/layout.tex}
+\input{generated/macros.generated.tex}
+\input{figures/plots.tex}
+\title{\paperTitle}
+\author{Pooria Arab\\Independent researcher\\\href{\authorOrcid}{\authorOrcid}}
+\begin{document}
+\maketitle
+\begin{abstract}\paperAbstract\end{abstract}
+\section{Why this matters}
+A support agent controls more than its words. It can move money, replace an order, or refer a complaint for human review. A polite response does not show that any of those actions happened. A completed action does not show that the action was authorized. An evaluation must distinguish the requested remedy, the permitted remedy, and the record of what actually occurred.
+
+Pizza complaints provide a compact setting for this distinction. An incorrect topping calls for a replacement. A missing item can call for a refund or credit, depending on the order age. An allergen report calls for review before a financial remedy. These cases share a service context, but the correct action changes with the facts. A single generous strategy cannot satisfy every case.
+
+Apology Pizza studies \emph{bounded remedy execution}: selecting and carrying out the required remedy within an explicit support policy. The measured construct includes order verification, remedy class, monetary amount, action order, and a subsequent customer message. It excludes persuasion, empathy, legal compliance, and the customer's judgment of fairness. The policy describes an invented shop. It does not represent restaurant practice or advice for handling actual safety incidents.
+
+The contribution is an executable measurement design and a study of its limits. We test whether simple positive and negative controls receive expected scores. We also change the final message while keeping the actions fixed. Finally, a simulated control ablation tests how forced process steps affect omissions. None of these experiments ranks learned models. Their purpose is to make the meaning of a future model score clear before treating it as evidence of competence.
+
+The main distinction is between \emph{action evidence} and \emph{communication evidence}. The benchmark reconstructs actions from a tool log. It detects a missing post-remedy message. It does not establish that the message explains the remedy. This distinction matters because a future model can satisfy the implemented checks while failing part of the stated service goal.
+\section{Related work}
+Tool-agent-user evaluations such as $\tau$-bench combine domain rules, tools, and simulated conversations \citep{tau}. Apology Pizza narrows the setting to short complaint episodes with fixed facts. This removes dialogue uncertainty and makes individual action constraints easier to inspect. It also removes important challenges: clarification, negotiation, changing user intent, and misunderstanding across several turns. A passing pizza trace therefore cannot substitute for success in an interactive service evaluation.
+
+PayBench frames delegated spending around unsafe actions and harmless lookalikes \citep{paybench}. That structure motivates reporting both useful action and policy restraint. Apology Pizza uses scenario classes rather than matched trap/lookalike pairs. Its current set does not isolate a single changed fact across every pair. Our comparisons pair policies on the same tasks, which controls task content for that comparison. They do not estimate the causal effect of a complaint becoming risky.
+
+BetterBench treats design, implementation, documentation, and maintenance as parts of benchmark quality \citep{better}. The Agentic Benchmark Checklist highlights errors in task setup and rewards \citep{abc}. We apply these concerns through a scripted positive control, trivial policies, saved action traces, and an explicit challenge to the communication check. This paper does not claim a complete checklist assessment or independent validation. It reports concrete observations that a reader can reproduce.
+
+Construct validity concerns whether the observations support the claimed capability \citep{construct}. Here, tool events strongly support a narrow claim about actions in the simulator. A nonempty message supports a weaker claim about communication. We keep these claims separate. We also use intervals suitable for small binary samples and explain their sampling assumptions. Small-sample evaluation needs more care than attaching a normal approximation to a mean \citep{small}.
+\section{Experiment design}
+\subsection{Episode and policy}
+Each task supplies a complaint and an order identifier. The environment provides the shop policy and tools for lookup, refund, credit, replacement, escalation, and customer messaging. A successful lookup returns the order facts. The agent must verify the exact order before a remedy. The environment records attempts, accepted actions, messages, and policy violations. The evaluator then replays the tool log against a fresh environment.
+
+The complaint determines a remedy class. Wrong toppings and cold pizza require a replacement. Recent missing items require a bounded item refund. Older missing items require store credit. Late deliveries and repeat late deliveries require bounded credit derived from the order value. An incorrect customer address receives a fixed courtesy credit. Allergen incidents and suspected fraud require escalation. These rules deliberately trade breadth for a small set of inspectable decisions.
+
+Order age affects the missing-item branch, not every complaint. An old cold-pizza case still requires a replacement under this policy. A script that applies a refund-age rule to all remedies can therefore fail for the wrong reason. The evaluation concerns the supplied policy, including its simplifications. It does not judge whether those simplifications make commercial sense.
+
+Verification and messaging surround the remedy. Verification establishes which order the agent acts upon. Messaging supplies a recorded follow-up action. A message before the remedy does not satisfy the post-remedy requirement. An apology in ordinary assistant text does not create a customer-message event. The tool call, its acceptance, and its order in the trace matter.
+\subsection{Controls and access to information}
+The study fixes \baselineCount{} scripted baseline conditions before collecting outputs. Empty, constant, echo, and refusal policies end without useful tool actions. The first-tool policy repeatedly calls lookup with missing arguments. These controls test whether plausible-looking text or an invalid tool attempt earns task completion. They do not test language understanding.
+
+The positive control computes its remedy from structured scenario inputs. It reads neither the expected remedy nor the expected amount. It then verifies the order, performs the remedy, and sends a message. However, this policy receives structured scenario facts through the scripted adapter. A learned model would need to obtain and interpret relevant observations. We therefore call it a scenario-aware scripted policy, not a blind agent or an independent solver.
+
+The omission controls remove lookup or the final message from that policy. Another control replaces the final message with the unrelated phrase ``Purple aardvark.'' Always-escalate and always-remake retain verification and messaging but ignore the complaint when choosing the remedy. The over-cap control requests an excessive refund after lookup. These conditions separate process order, action selection, financial constraints, and communication content.
+
+Each condition runs through the same public episode runner and environment used for agent evaluation. Scripted turns stop after completion or a text-only terminal response. The invalid first-tool policy reaches the fixed turn limit. Failed calls remain in the saved tool log. Infrastructure errors abort collection instead of becoming task failures. The completed study contains no such errors.
+\subsection{Prospective plan and repeatability}
+The study plan precedes saved result files in version history. It defines hypotheses, conditions, uncertainty methods, exclusions, and the stopping rule. It is a local prospective record, not an independently timestamped registration. An initial execution attempt fails because incomplete mock scripts lack a terminal turn. A dated note records the correction before the full rerun. The correction adds a text-only stop and leaves the omitted actions absent.
+
+Every condition runs twice. We compare task identifiers, submissions, grades, reasons, and grader details after excluding execution timing. A repeat checks deterministic execution; it does not supply another independent task. The total is \episodeCount{} local episodes, including both passes. Provider charges are absent because all policies are local scripts. Free hosted inference is not configured or tested for this study.
+\section{Coverage}
+The public set contains \taskCount{} tasks in \scenarioCount{} scenario classes. Each class contributes the same task count, but remedy classes have unequal representation. Missing-item tasks split between refunds and credits. Figure~\ref{fig:coverage} shows this composition directly. Reporting only an overall success rate would hide which actions are common and which are rare.
+\coverageFigure
+
+The tasks use seeded synthetic names, prices, order ages, and complaint wording. They are not sampled from customer tickets. Equal scenario weight makes the benchmark easy to inspect but does not estimate a shop's complaint distribution. A deployed service could see far more late deliveries than allergen reports. The benchmark mean gives each public task equal weight, regardless of operational frequency or harm.
+
+Coverage is also limited within a class. Fraud cases present a flag rather than ambiguous evidence. Allergen cases state the concern directly. The agent need not discover concealed facts, compare conflicting witnesses, or ask a customer for proof. The scenario-aware script receives a particularly favorable view of this information. Its success validates the planned action path, not the difficulty of recognizing each complaint.
+
+The generator supports additional instances, but this study uses only the frozen public set. We do not call the simulated seed sweep a hidden-task evaluation. Those seeds change omissions, while the complaints remain fixed. New names or prices would still share templates with the public set. A stronger holdout should vary complaint structure and policy interactions, not merely surface values.
+
+Refunds receive less coverage than credit, replacement, or escalation. This makes a single overall score a weak description of refund competence. Future reports should include remedy-specific completion and violation counts. They should also separate safety cases from routine cases. Such breakdowns would improve interpretation without changing the normative policy itself.
+\section{Failure taxonomy and control layers}
+\paragraph{Identity and sequence failures.} A remedy before lookup violates the required order of actions. A lookup with the wrong identifier does not establish verification. A message sent too early cannot demonstrate that the final outcome reached the customer. These failures concern process state rather than the wording of a response.
+\paragraph{Selection and amount failures.} A replacement can be valid for one complaint and inappropriate for another. A credit can have the right class but the wrong amount. The evaluator distinguishes exact remedy selection from the amount check. A wrong amount on an otherwise correct monetary remedy triggers a hard violation. Monetary equality is exact because the policy uses whole-dollar amounts.
+\paragraph{Authority and repetition failures.} The policy limits refunds and credits and prohibits duplicate remedies. Mixed remedy attempts also trigger a hard violation, including attempts that fail. An agent cannot collect partial credit by trying several action classes until one seems to work. The score retains evidence of earlier forbidden attempts even when later actions look correct.
+\paragraph{Safety referral failures.} Allergen and fraud cases require review. Attempting a financial remedy or replacement on those cases records a safety violation. This is a scoring safeguard, but it is not a complete execution barrier. The simulator can record an unsafe action and still mutate its state when other checks permit the action. A zero score therefore does not prove that the environment prevented the side effect.
+\paragraph{Communication failures.} The evaluator detects absence and timing of a customer message. It does not assess whether that message names the remedy, states the amount, or contradicts the action record. The unrelated-message control isolates this gap. Treating all communication failures as equivalent would hide the difference between a missing message and an incorrect message.
+
+Three control layers should remain distinct. A written policy instructs the agent. Tool checks reject some invalid calls and record violations. The evaluator assigns credit after replay. Our simulated intervention adds forced process steps in the scripted trajectory. It does not remove tool checks, change the written policy, or simulate a production authorization service. This narrow intervention permits a clean test of omission sensitivity.
+\section{Metrics and scoring}
+Let $R_i$, $A_i$, $V_i$, and $M_i$ indicate correct remedy, correct amount, verification before the remedy, and a message afterward. Let $H_i$ mark a hard violation. The released task score is
+\begin{equation} S_i=(1-H_i)\frac{R_i+A_i+V_i+M_i}{4}. \end{equation}
+The amount check requires the remedy check to pass. The checks are therefore dependent. A wrong remedy usually loses both remedy and amount credit. The verification and messaging checks also refer to the expected remedy event. They should not be read as independent measures of generic lookup or message activity.
+
+Our primary outcome is full completion, $C_i=\mathbf{1}[S_i=1]$. We also report the mean task score and the incidence of any recorded policy violation. Full completion has a direct interpretation under the implemented checks. Mean score describes partial credit, which can conceal missing follow-up actions. Violation incidence describes recorded attempts and rules; it is not the probability of actual customer harm.
+
+For baseline completion and violation rates, we report \ciLevel\% Wilson intervals. These intervals describe hypothetical sampling of similar tasks. They do not represent uncertainty in the deterministic score of this fixed set. Shared templates weaken an independent-task interpretation. The intervals therefore serve as a small-sample sensitivity display, not population guarantees. Repeated execution does not narrow them.
+
+For mean task scores, we use a percentile bootstrap with \bootstrapDraws{} draws. Resampling occurs within scenario classes and preserves their public-set weights. This conditions on the existing class composition. It cannot represent uncertainty about missing scenario types. A constant score within every class produces a collapsed interval. Such a collapse is a property of the resampling scheme, not proof that future tasks have no uncertainty.
+
+For the simulated sweep, the resampling unit is a simulated seed. We first compute each seed's mean over the fixed task set. We then bootstrap those seed means. The resulting intervals describe Monte Carlo variation in omissions under the chosen model. They do not describe learned-agent variation. Contrasts reuse the same seed and task in each control condition before resampling, preserving the paired design.
+\section{Results}
+\subsection{Scripted baseline separation}
+The scenario-aware policy reaches full completion at \policyRate{}. The unrelated-message control reaches \genericRate{}. The brackets are \ciLevel\% Wilson intervals. Their identical results support the planned communication-gap hypothesis: the evaluator detects that a message occurs, but not whether it explains the resolution. This is a limitation of the measured construct, not evidence that unrelated messages are acceptable service.
+\begin{table}[ht]\centering\scriptsize\begin{tabular}{lrrr}\toprule Policy & Completion [CI] & Mean score [CI] & Violation [CI]\\\midrule\csname @@input\endcsname generated/baselines.generated.tex \bottomrule\end{tabular}\caption{Scripted controls on the complete public set. Completion and violations use Wilson intervals; mean scores use a scenario-stratified bootstrap. No learned models appear.}\label{tab:baseline}\end{table}
+
+The nonacting controls fail to complete tasks. This includes empty output, constant text, echoing the complaint, and refusal. Invalid lookup attempts also fail. These results show that prose alone and malformed calls do not satisfy the action-based score. They do not establish resistance to every adversarial strategy. A small negative-control battery can reveal a defect, but its failure to reveal one is not a proof of soundness.
+
+Removing lookup prevents full completion and creates recorded violations. Removing only the message leaves partial credit for the action path. This difference supports the use of full completion alongside mean score. A service that applies the right remedy but never informs the customer is operationally distinct from one that completes the sequence. The partial score expresses that distinction without treating the incomplete episode as fully resolved.
+\baselineFigure
+
+Always-escalate and always-remake succeed only on complaints whose required remedy matches their fixed action. Their nonzero completion is expected from the class composition. It is not evidence of policy reasoning. The over-cap control fails throughout. That result validates the selected excessive-refund challenge, while leaving untested boundaries and interactions outside this study.
+
+The all-or-nothing baseline intervals remain wide at the boundaries because the task set is small. The mean-score bootstrap can be narrower or even collapsed because several controls are constant within a class. Readers should not compare those widths as if they measured the same source of uncertainty. The reported estimates answer different questions.
+\subsection{Simulated agent population sweep}
+The extra virtual experiment uses a simulated population of scripts with correct remedy selection and amount calculation. For each seed and task, independent deterministic pseudorandom draws govern lookup and message omission. The omission probability varies across the registered grid. The same draws serve all forced-step controls. There are \seedCount{} simulated seeds and \simCellCount{} simulated cells, each evaluated on the same public tasks.
+
+The simulated controls force neither step, lookup only, messaging only, or both. Forcing a step inserts the corresponding valid action at its designated position. It does not infer whether a real model understood the policy. The underlying remedy is already correct in this simulated population. The experiment therefore isolates process omissions from classification and arithmetic mistakes.
+
+At the middle omission setting, simulated completion without forced steps is \midRate{}. With both steps forced, it is \bothRate{}. The paired simulated gain is \midDelta{}. These are proportions with seed-bootstrap intervals. The gain is conditional on the designed omission process and should not be used to forecast the benefit of a product feature.
+\sweepFigure
+
+The simulated curve has a simple analytic reference. With independent omission probability $q$, a script without forced steps completes only when both steps remain. Its expected completion is $(1-q)^2$. Forcing one step changes that expectation to $1-q$. Forcing both makes completion certain within this restricted model. The recorded finite-seed curve fluctuates around these expectations. The experiment tests execution of this mechanism rather than discovering it.
+
+The simulated null at the no-omission boundary matters. When both required steps are already present, forcing them provides no improvement. At the full-omission boundary, a single forced step still leaves an incomplete process. These endpoints prevent a misleading claim that any extra control always improves completion. They also expose the interaction between verification and communication under a full-completion metric.
+
+Differences between the lookup-only and message-only simulated curves reflect finite random draws, not established differences in control quality. Each control addresses a separate Bernoulli omission with the same probability. Their analytic expected completion is equal. The released grader nevertheless gives different partial credit to some incomplete trajectories. Completion avoids conflating that score asymmetry with successful resolution.
+\subsection{Repeat evidence and interpretation}
+All repeated conditions produce matching semantic hashes. Replaying the stored tool logs reproduces the saved scores and details. These checks support deterministic execution at the frozen source version. They do not establish that the evaluator captures every relevant service property. The unrelated-message result demonstrates why repeatability and validity require separate evidence.
+
+A useful reading of the results has three parts. The action path admits a successful scripted control. Several trivial and omitted-action controls fail as intended. A communication-content control still passes. Together, these findings support bounded action evaluation while limiting claims about complete customer support. None supports a model leaderboard, a human comparison, or an estimate of production incident frequency.
+\section{Roadmap}
+The first priority is to strengthen communication evidence. A future study should compare message claims with the accepted action record. It should include wrong amounts, false refund claims, contradictory escalation statements, and irrelevant text. A deterministic checker might cover a restricted message format. A natural-language checker would need independent validation and a clear policy for ambiguous phrasing.
+
+The second priority is matched task design. A recent and an old missing-item complaint could share all facts except age. A routine topping complaint and an allergen complaint could share their wording except the safety fact. Such pairs would help separate rule sensitivity from general difficulty. They should be written and reviewed before model evaluation, with the expected differences recorded explicitly.
+
+The third priority is measuring prevention separately from grading. A simulator may penalize an unsafe attempt after allowing a state change. Future experiments should record attempted actions, accepted actions, and blocked actions as distinct outcomes. A control that reduces forbidden execution but increases refusals deserves a different interpretation from a control that merely changes the score.
+
+Learned-agent evaluation should follow these measurement changes. It should freeze prompts, tool schemas, model versions, and stopping rules. It should report remedy-specific outcomes and avoid treating repeated runs as new tasks. Free hosted models can support a limited study when access and publication terms permit it. No availability claim follows from their omission here.
+\section{Caveats and responsible use}
+This is a synthetic, English-language, single-domain evaluation. The complaints contain clear labels and little ambiguity. The tasks omit concurrent orders, identity disputes, customer consent, inventory availability, payment settlement, and human response delays. The environment is synchronous. A tool event confirms a simulated state transition, not receipt of funds or a replacement pizza.
+
+The benchmark's written policy is normative within the task. It is not validated by service workers, customers, legal experts, or safety specialists. No human study establishes that the selected remedies are fair or useful. Customer satisfaction and empathy remain unmeasured. The word ``apology'' in the benchmark name should not imply an evaluation of apology quality.
+
+The positive control has structured task access. The simulated population inherits its correct remedy logic and varies only process omissions. These assumptions deliberately favor diagnosis over realism. They exclude correlated planning failures, mistaken amounts, incorrect scenario classification, and feedback-driven recovery. Adding those errors would require a new registered design, not a reinterpretation of the current curves.
+
+The public task set is small and exposed. A system can memorize its decision rules or outputs. Matching repeat hashes do not address contamination. Even a private seed would protect exact instances more than the underlying templates. Claims about generalization need genuinely different task structures and an explicit separation between development and evaluation material.
+
+Confidence intervals do not repair these coverage limits. Baseline Wilson intervals assume a hypothetical sampling model. Scenario-stratified bootstraps condition on the existing classes. Simulated intervals condition on the imposed omission process and a small seed set. None of these methods estimates uncertainty about missing real-world conditions. Boundary intervals that collapse deserve particular caution.
+
+The current study does not validate every cap boundary, duplicate-action path, or malformed argument type. Existing software checks cover additional cases, but they are not added to this paper's scientific results. The reported findings concern the registered conditions alone. No result should be read as a guarantee that arbitrary adversarial traces fail safely.
+
+All tasks use fictional customer data. The study makes no external payments and contacts no customers. The paper and generated figures use CC-BY-4.0; the benchmark code and tasks retain their existing MIT license. Use the results to inspect evaluation assumptions and design further experiments. Do not use a passing score alone to authorize an autonomous support deployment.
+\section{Citation and authors}
+Cite this work as Pooria Arab, \emph{\paperTitle}, research preprint. This packet has no new archival identifier and claims no venue acceptance. The software citation remains separate from the paper citation.
+
+Pooria Arab is an independent researcher. AI assistance supports experiment scripting, drafting, and artifact checks. This assistance is not an independent human review. Responsibility for the claims and future release decisions remains with the author.
+
+\paragraph{Availability.} Code, task data, raw study traces, and reproduction instructions are available at \url{https://github.com/pooriaarab/benchmark-apology-pizza}. The paper packet pins the evaluated source and records the prospective plan. No publication deposit or merge forms part of this study.
+\bibliographystyle{plainnat}
+\bibliography{references}
+\appendix
+\section{Full simulated contrasts}
+Table~\ref{tab:sweep} preserves every registered simulated setting, including null contrasts. Each row pools seed-level means over the fixed public tasks. The contrast subtracts the no-control outcome at the same omission probability, with seed and task pairing preserved. Repeating the execution confirms reproducibility but does not add seeds to the interval calculation.
+\begin{table}[ht]\centering\small\begin{tabular}{llrr}\toprule Simulated $q$ & Forced step & Simulated completion [CI] & Paired gain [CI]\\\midrule\csname @@input\endcsname generated/sweep.generated.tex \bottomrule\end{tabular}\caption{All simulated conditions. Brackets show \ciLevel\% percentile bootstrap intervals over \seedCount{} simulated seeds. Every row concerns the same fixed task set.}\label{tab:sweep}\end{table}
+\section{Reading a trace}
+A trace should be inspected in action order. First, identify whether the lookup uses the supplied order identifier. Next, inspect the remedy attempt and any returned error. Then check whether the accepted action matches the policy branch and amount. Finally, identify a customer-message event after the remedy. A friendly final answer outside this sequence is not evidence of a completed action.
+
+The evaluator rebuilds state from those attempts. Submitted final-state fields do not establish success. This distinction prevents a forged state snapshot from replacing action evidence. However, deterministic replay alone does not prove that a trace came from a particular model. Model attribution would require a separate collection protocol and trusted run records.
+
+A hard violation may remain even after a later correct action. This captures the cost of attempting a forbidden remedy. It also means that a score cannot summarize recovery in isolation. A future recovery study should report the initial violation, subsequent accepted actions, and final state separately. That study would answer a different question from first-pass policy compliance.
+\end{document}

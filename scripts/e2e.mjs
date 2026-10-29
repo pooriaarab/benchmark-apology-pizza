@@ -111,7 +111,7 @@ await cli("card", reportPath, cardPath);
 const card = await readFile(cardPath, "utf8");
 assert.match(card, /Apology Pizza/);
 assert.match(card, /mock:1/);
-assert.match(card, /private-repo-337e\.com/);
+assert.match(card, /aibenchmarkindex\.com/);
 assert.match((await cli("provenance")).stdout, /Seeded pizza complaint generator/);
 const indexEntry = JSON.parse((await cli("index-entry", "--json")).stdout);
 assert.equal(indexEntry.task_count, 40);

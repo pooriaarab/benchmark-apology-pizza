@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "title": "Apology Pizza: Measuring Bounded Remedies in Customer Support",
+  "abstract": "Customer support agents can offer polite text while taking the wrong financial action. Apology Pizza measures bounded remedy execution on 40 synthetic complaints across 8 scenario classes. We evaluate 12 scripted controls through the live tool environment and replay grader. A scenario-aware policy completes 40/40 tasks, with a 95% Wilson interval [0.912, 1.000]. Replacing its final message with unrelated text also completes 40/40, with the same Wilson interval, exposing a message-content gap. A simulated control ablation varies independent omissions of verification and messaging. At omission probability 0.5, simulated completion changes from 0.234 [0.197, 0.266] without forced steps to 1.000 [1.000, 1.000] with both steps forced; brackets show 95% seed-bootstrap intervals. All 13760 local episodes include repeated runs with identical semantic traces. These results test the evaluation design, not learned models, customer satisfaction, or deployment safety.",
+  "authors": [
+    {
+      "name": "Pooria Arab",
+      "affiliation": "Independent researcher",
+      "orcid": "https://orcid.org/0009-0005-9964-6841"
+    }
+  ],
+  "license": "CC-BY-4.0",
+  "keywords": [
+    "customer support",
+    "policy compliance",
+    "tool use",
+    "deterministic evaluation",
+    "simulated control ablation"
+  ],
+  "code_url": "https://github.com/pooriaarab/benchmark-apology-pizza",
+  "artifact_name": "apology-pizza-paper.pdf"
+}

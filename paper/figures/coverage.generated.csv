@@ -1,0 +1,9 @@
+x,scenario,refund,credit,remake,escalate
+0,wrong-topping,0,0,5,0
+1,late,0,5,0,0
+2,cold,0,0,5,0
+3,missing-item,3,2,0,0
+4,customer-address,0,5,0,0
+5,allergen,0,0,0,5
+6,angry-repeat,0,5,0,0
+7,fraud-pattern,0,0,0,5
