@@ -1,5 +1,7 @@
 # benchmark-apology-pizza
 
+Paper: [10.5281/zenodo.23752384](https://doi.org/10.5281/zenodo.23752384).
+
 [![npm](https://img.shields.io/npm/v/benchmark-apology-pizza)](https://www.npmjs.com/package/benchmark-apology-pizza) [![downloads](https://img.shields.io/npm/dm/benchmark-apology-pizza)](https://www.npmjs.com/package/benchmark-apology-pizza) [![license](https://img.shields.io/npm/l/benchmark-apology-pizza)](LICENSE) [![types](https://img.shields.io/badge/TypeScript-types-3178c6)](#typescript-sdk)
 
 [AI Benchmark Index](https://private-repo-337e.com/benchmarks/benchmark-apology-pizza) · [npm](https://www.npmjs.com/package/benchmark-apology-pizza) · [CLI](#command-line-interface) · [API](#http-api) · [MCP](#model-context-protocol)
